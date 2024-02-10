@@ -17,8 +17,8 @@ setup(
             'coverage==7.4.0',
         ],
     },
-    author='Carl-Christian Neundorf',
-    author_email='carl.neundorf@powerjames.com',
+    author='ElCaptaine',
+    author_email='',
     python_requires='>=3.10',
     description='A description of your project',
     classifiers=[
