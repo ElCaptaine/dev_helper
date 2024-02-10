@@ -1,20 +1,20 @@
 # dev_helper
-`dev_helpers` is a Python package designed to simplify the development process by providing a collection of essential development tools, all conveniently stored in one place. The package aims to enhance the developer experience, making it easier to perform common tasks. Key components of this package include the DatabaseHandler, for managing database connections and operations.
+`dev_helpers` is a Python package designed to simplify the development process by providing a collection of essential development tools, all conveniently stored in one place. The package aims to enhance the developer experience, making it easier to perform common tasks. Key components of this package include the DatabaseHandler, for managing database connections and operations,.
 
 ## Installation
 
 If the package is published, do a normal pip installation (as shown below)
 ```bash
-pip install pj_dev_helpers
+pip install dev_helper
 ```
 Till it is released and published in PIPY, the installation steps are the following:
 1. Clone the project: 
 ```bash 
-git clone https://gitlab.com/charger-s/pj_dev_helper.git
+git clone https://github.com/ElCaptaine/dev_helper.git
 ```
 1. Go into the directory:
 ```bash
-cd path/to/folder/of/pj_dev_helper
+cd path/to/folder/of/dev_helper
 ```
 1. Either do in the root dir of the project:
     - `pip install -e .`
@@ -28,13 +28,13 @@ That's it. If you want to also contribute please also install the test requireme
 
 ### DatabaseHandler
 
-The `DatabaseHandler` is a crucial component of `pj_dev_helpers`, designed to streamline database-related tasks. 
+The `DatabaseHandler` is a crucial component of `dev_helper`, designed to streamline database-related tasks. 
 It simplifies database connections, session management, and query execution. 
 For detailed information on how to use the `DatabaseHandler`,
 refer to the [documentation](documentation/database_handler.md).
 
 ```python
-from pj_dev_helpers import DatabaseHandler
+from dev_helper import DatabaseHandler
 
 # Example usage
 db_handler = DatabaseHandler(config_file=".db.conf", section="test_database")
@@ -45,7 +45,7 @@ with db_handler as session:
 
 ## Testing locally
 
-If you want to test locally, please make sure that Docker is installed, and ensure that the .db.conf file has an entry liketest_pj_helper_database.
+If you want to test locally, please make sure that Docker is installed, and ensure that the .db.conf file has an entry like test_helper_database.
 
 Also, make sure that the PostgreSQL container is set up and running. For example:
 
