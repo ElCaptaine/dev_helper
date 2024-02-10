@@ -24,7 +24,7 @@ jobs:
           pip install flake8
       - name: Run flake8
         run: |
-          flake8 --per-file-ignores="__init__.py:F401" --max-line-length 88 pj_dev_helper/
+          flake8 --per-file-ignores="__init__.py:F401" --max-line-length 88 dev_helper/
 
   test:
     runs-on: ubuntu-latest
