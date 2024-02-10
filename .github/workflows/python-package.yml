@@ -26,6 +26,34 @@ jobs:
         run: |
           flake8 --per-file-ignores="__init__.py:F401" --max-line-length 88 dev_helper/
 
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python --version
+          pip install flake8
+      - name: Run flake8
+        run: |
+          flake8 --per-file-ignores="__init__.py:F401" --max-line-length 88 dev_helper/
+
   test:
     runs-on: ubuntu-latest
     services:
@@ -53,7 +81,9 @@ jobs:
           source venv/bin/activate
           pip install -e .
           pip install -e .[tests]
-          pip install pytest
+          pip install py  
+      - name: Set up pytest path
+        run: echo "::add-path::$(python -m site --user-base)/bin"test
       - name: Run tests
         run: pytest tests/
       - name: Upload .db.conf artifact
@@ -61,3 +91,4 @@ jobs:
         with:
           name: db-config
           path: .db.conf
+
