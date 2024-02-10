@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python --version
+          pip install flake8
+      - name: Run flake8
+        run: |
+          flake8 --per-file-ignores="__init__.py:F401" --max-line-length 88 pj_dev_helper/
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+      - name: Set up PostgreSQL client
+        run: |
+          echo "[test_pj_helper_database]" > .db.conf 
+          echo "host=localhost" >> .db.conf 
+          echo "port=5432" >> .db.conf 
+          echo "user=test_user" >> .db.conf 
+          echo "password=test_password" >> .db.conf
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -e .
+          pip install -e .[tests]
+      - name: Run tests
+        run: pytest tests/
+      - name: Upload .db.conf artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: db-config
+          path: .db.conf
+
+  package:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+      - name: Create virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+      - name: Install dependencies
+        run: |
+          pip install wheel
+          python setup.py sdist bdist_wheel
+          pip install twine

@@ -1,5 +1,5 @@
 # dev_helper
-`dev_helpers` is a Python package designed to simplify the development process by providing a collection of essential development tools, all conveniently stored in one place. The package aims to enhance the developer experience, making it easier to perform common tasks. Key components of this package include the DatabaseHandler, for managing database connections and operations, and the Logger, a tool for enhanced logging management.
+`dev_helpers` is a Python package designed to simplify the development process by providing a collection of essential development tools, all conveniently stored in one place. The package aims to enhance the developer experience, making it easier to perform common tasks. Key components of this package include the DatabaseHandler, for managing database connections and operations.
 
 ## Installation
 
