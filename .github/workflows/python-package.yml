@@ -53,6 +53,7 @@ jobs:
           source venv/bin/activate
           pip install -e .
           pip install -e .[tests]
+          pip install pytest
       - name: Run tests
         run: pytest tests/
       - name: Upload .db.conf artifact
@@ -60,23 +61,3 @@ jobs:
         with:
           name: db-config
           path: .db.conf
-
-  package:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10'
-      - name: Create virtual environment
-        run: |
-          python -m venv venv
-          source venv/bin/activate
-      - name: Install dependencies
-        run: |
-          pip install wheel
-          python setup.py sdist bdist_wheel
-          pip install twine
