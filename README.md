@@ -56,6 +56,44 @@ docker run --name postgres-container \
   -p 5432:5432 \
   -d postgres:latest
 ```
+
+## Scripts
+
+### database_visualizer
+This guide introduces the Database Visualizer script, which provides a graphical representation of relationships between tables in a database.
+
+#### What it Does
+
+The Database Visualizer script:
+
+1. Connects to the specified database.
+2. Retrieves information about table relationships.
+3. Generates a graph that visually represents these relationships.
+4. Allows customization of graph layout and saving the graph image.
+
+#### Usage
+
+To use the Database Visualizer:
+
+1. Run the script with Python.
+2. Specify the database to visualize using the `--db_spec` option.
+3. Optionally, provide additional arguments like `--path`, `--layout`, and `--show` for customization.
+
+#### Example
+
+```bash
+python database_visualizer.py --db_spec my_database --path /path/to/save/graph --layout shell_layout --show
+```
+
+This command visualizes the relationships in the `my_database` database, saves the graph image to the specified path, uses the `shell_layout` for graph layout, and displays the graph plot.
+
+#### Note
+
+Ensure you have the necessary dependencies installed, and provide the appropriate database specification.
+
+For detailed information and advanced usage, refer to the [documentation](documentation/database_visualizer.md).
+
+
 ## Contributing
 
 If you would like to contribute to `dev_helpers` or report issues, please check the [contribution guidelines](CONTRIBUTING.md).
