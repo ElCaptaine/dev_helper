@@ -11,7 +11,7 @@ Database Visualizer
 
 Small script to graphical show how the tables are realted.
 
-Author: Carl-Christian Neundorf
+Author: ElCaptaine
 Version: 0.1
 
 Usage:
