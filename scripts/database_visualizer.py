@@ -154,6 +154,8 @@ def plot_graph(
     "--show",
     "-s",
     is_flag=True,
+    help="Should the plot be also displayed at run time or only create a file; By default it wont show the plot"
+
 )
 def main(
     db_spec: str,
