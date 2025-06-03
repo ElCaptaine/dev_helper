@@ -10,6 +10,7 @@ setup(
         'click==8.1.7',
         'networkx==3.2.1',
         'matplotlib==3.8.2',
+        'jpype1==1.5.2',
     ],
     extras_require={
         'tests': [
