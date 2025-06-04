@@ -68,7 +68,7 @@ def convert_java_types(obj):
 
 def aggregate_metrics(class_info):
     """
-    Aggregate class-level metrics to produce project-level summary metrics.
+    Aggregate class-level metrics into project-level summary statistics.
     """
     agg = {
         "total_classes": len(class_info),
@@ -101,6 +101,184 @@ def aggregate_metrics(class_info):
     return agg
 
 
+def calculate_LOC(code):
+    """
+    Calculate Lines of Code (LOC) excluding empty lines and comments.
+
+    Args:
+        code (str): Source code text.
+
+    Returns:
+        int: Number of non-empty, non-comment lines.
+    """
+    return len([line for line in code.splitlines() if line.strip() and not line.strip().startswith("//")])
+
+
+def calculate_NOM(cid):
+    """
+    Calculate Number of Methods (NOM) declared in the class.
+
+    Args:
+        cid: JavaParser class or record declaration.
+
+    Returns:
+        int: Number of methods.
+    """
+    return cid.getMethods().size()
+
+
+def calculate_WMC(cid):
+    """
+    Calculate Weighted Methods per Class (WMC) as sum of cyclomatic complexities.
+
+    Cyclomatic complexity per method is 1 + count of control flow statements.
+
+    Args:
+        cid: JavaParser class or record declaration.
+
+    Returns:
+        int: Total WMC.
+    """
+    from com.github.javaparser.ast.stmt import ForStmt, IfStmt, SwitchStmt, WhileStmt
+
+    wmc = 0
+    for method in cid.getMethods():
+        complexity = 1
+        body = method.getBody().orElse(None)
+        if body:
+            complexity += body.findAll(IfStmt).size()
+            complexity += body.findAll(ForStmt).size()
+            complexity += body.findAll(WhileStmt).size()
+            complexity += body.findAll(SwitchStmt).size()
+        wmc += complexity
+    return wmc
+
+
+def calculate_RFC(cid):
+    """
+    Calculate Response For a Class (RFC) as number of methods plus number of method calls.
+
+    Args:
+        cid: JavaParser class or record declaration.
+
+    Returns:
+        int: RFC metric.
+    """
+    from com.github.javaparser.ast.expr import MethodCallExpr
+
+    methods = cid.getMethods()
+    rfc = methods.size()
+    for method in methods:
+        body = method.getBody().orElse(None)
+        if body:
+            calls = body.findAll(MethodCallExpr)
+            rfc += calls.size()
+    return rfc
+
+
+def calculate_CBO(cid):
+    """
+    Calculate Coupling Between Objects (CBO) as number of distinct classes coupled via method calls.
+
+    Args:
+        cid: JavaParser class or record declaration.
+
+    Returns:
+        int: CBO metric.
+    """
+    from com.github.javaparser.ast.expr import MethodCallExpr
+
+    called_classes = set()
+    for method in cid.getMethods():
+        body = method.getBody().orElse(None)
+        if body:
+            calls = body.findAll(MethodCallExpr)
+            for call in calls:
+                scope = call.getScope().orElse(None)
+                if scope:
+                    called_classes.add(str(scope.toString()))
+    return len(called_classes)
+
+
+def calculate_LCOM(cid):
+    """
+    Calculate Lack of Cohesion of Methods (LCOM) based on method pairs sharing fields.
+
+    LCOM = max(P - Q, 0) where:
+      P = number of method pairs that do NOT share any field
+      Q = number of method pairs that share at least one field
+
+    Args:
+        cid: JavaParser class or record declaration.
+
+    Returns:
+        int: LCOM metric.
+    """
+    from com.github.javaparser.ast.expr import FieldAccessExpr, NameExpr
+
+    fields = {f.getVariable(0).getNameAsString() for f in cid.getFields()}
+    methods = cid.getMethods()
+    if methods.size() < 2:
+        return 0
+
+    method_field_access = []
+
+    for method in methods:
+        accessed_fields = set()
+        body = method.getBody().orElse(None)
+        if body:
+            field_accesses = list(body.findAll(FieldAccessExpr)) + list(body.findAll(NameExpr))
+            for fa in field_accesses:
+                name = fa.getNameAsString()
+                if name in fields:
+                    accessed_fields.add(name)
+        method_field_access.append(accessed_fields)
+
+    P = 0
+    Q = 0
+    n = len(method_field_access)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if method_field_access[i].intersection(method_field_access[j]):
+                Q += 1
+            else:
+                P += 1
+
+    return max(P - Q, 0)
+
+
+def calculate_DIT(cls, inheritance_map):
+    """
+    Calculate Depth of Inheritance Tree (DIT) for a class.
+
+    Args:
+        cls (str): Class name.
+        inheritance_map (dict): Map of class to its superclass.
+
+    Returns:
+        int: DIT value.
+    """
+    depth = 0
+    while inheritance_map.get(cls):
+        cls = inheritance_map[cls]
+        depth += 1
+    return depth
+
+
+def calculate_NOC(cls, children_map):
+    """
+    Calculate Number of Children (NOC) for a class.
+
+    Args:
+        cls (str): Class name.
+        children_map (dict): Map of class to list of immediate subclasses.
+
+    Returns:
+        int: NOC value.
+    """
+    return len(children_map[cls])
+
+
 @click.command()
 @click.argument("src_dir", type=click.Path(exists=True))
 @click.option("--output", type=click.Path(), help="Optional JSON file to save the metrics.")
@@ -113,8 +291,6 @@ def analyze_java_metrics(src_dir, output, aggregate):
         jpype.startJVM(classpath=[str(CORE_JAR), str(SYMBOL_SOLVER_JAR), str(GUAVA_JAR)])
 
     from com.github.javaparser import ParserConfiguration, StaticJavaParser
-    from com.github.javaparser.ast.expr import MethodCallExpr, FieldAccessExpr, NameExpr
-    from com.github.javaparser.ast.stmt import ForStmt, IfStmt, SwitchStmt, WhileStmt
     from com.github.javaparser.ast.body import RecordDeclaration
     from com.github.javaparser.ParserConfiguration import LanguageLevel
     from com.github.javaparser.symbolsolver import JavaSymbolSolver
@@ -137,45 +313,6 @@ def analyze_java_metrics(src_dir, output, aggregate):
     class_info = {}
     inheritance_map = {}
     children_map = defaultdict(list)
-
-    def compute_LCOM(cid):
-        """
-        Compute Lack of Cohesion of Methods (LCOM) for a class.
-
-        LCOM = number of method pairs that do NOT share a field (P) minus
-               number of method pairs that do share a field (Q), if P > Q, else 0.
-        """
-        fields = {f.getVariable(0).getNameAsString() for f in cid.getFields()}
-        methods = cid.getMethods()
-        if methods.size() < 2:
-            return 0  # Not enough methods for cohesion analysis
-
-        method_field_access = []
-
-        for method in methods:
-            accessed_fields = set()
-            body = method.getBody().orElse(None)
-            if body:
-                # Combine FieldAccessExpr and NameExpr for field access detection
-                field_accesses = list(body.findAll(FieldAccessExpr)) + list(body.findAll(NameExpr))
-                for fa in field_accesses:
-                    name = fa.getNameAsString()
-                    if name in fields:
-                        accessed_fields.add(name)
-            method_field_access.append(accessed_fields)
-
-        P = 0  # pairs without shared fields
-        Q = 0  # pairs with shared fields
-
-        n = len(method_field_access)
-        for i in range(n):
-            for j in range(i + 1, n):
-                if method_field_access[i].intersection(method_field_access[j]):
-                    Q += 1
-                else:
-                    P += 1
-
-        return max(P - Q, 0)
 
     for dirpath, _, filenames in os.walk(src_dir):
         for filename in filenames:
@@ -208,36 +345,12 @@ def analyze_java_metrics(src_dir, output, aggregate):
                             inheritance_map[name] = superclass
                             children_map[superclass].append(name)
 
-                        methods = cid.getMethods()
-                        nom = methods.size()
-                        wmc = 0
-                        rfc = 0
-                        called_classes = set()
-
-                        for method in methods:
-                            complexity = 1
-                            body = method.getBody().orElse(None)
-                            if body:
-                                complexity += body.findAll(IfStmt).size()
-                                complexity += body.findAll(ForStmt).size()
-                                complexity += body.findAll(WhileStmt).size()
-                                complexity += body.findAll(SwitchStmt).size()
-                                calls = body.findAll(MethodCallExpr)
-                                rfc += calls.size()
-
-                                for call in calls:
-                                    scope = call.getScope().orElse(None)
-                                    if scope:
-                                        called_classes.add(str(scope.toString()))
-
-                            wmc += complexity
-
-                        cbo = len(called_classes)
-                        rfc += nom
-                        loc = len([line for line in code.splitlines() if line.strip() and not line.strip().startswith("//")])
-
-                        # Precise LCOM calculation
-                        lcom = compute_LCOM(cid)
+                        loc = calculate_LOC(code)
+                        nom = calculate_NOM(cid)
+                        wmc = calculate_WMC(cid)
+                        rfc = calculate_RFC(cid)
+                        cbo = calculate_CBO(cid)
+                        lcom = calculate_LCOM(cid)
 
                         class_info[name] = {
                             "LOC": loc,
@@ -249,19 +362,9 @@ def analyze_java_metrics(src_dir, output, aggregate):
                             "Superclass": superclass,
                         }
 
-    def get_dit(cls):
-        """
-        Calculate Depth of Inheritance Tree (DIT) for a class.
-        """
-        depth = 0
-        while inheritance_map.get(cls):
-            cls = inheritance_map[cls]
-            depth += 1
-        return depth
-
     for cls in class_info:
-        class_info[cls]["DIT"] = get_dit(cls)
-        class_info[cls]["NOC"] = len(children_map[cls])
+        class_info[cls]["DIT"] = calculate_DIT(cls, inheritance_map)
+        class_info[cls]["NOC"] = calculate_NOC(cls, children_map)
 
     output_data = {"classes": convert_java_types(class_info)}
 
