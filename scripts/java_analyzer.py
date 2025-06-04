@@ -51,13 +51,6 @@ GUAVA_JAR = Path("/Users/carl_neundorf/GIT/privat/lib/guava-31.1-jre.jar")
 def convert_java_types(obj):
     """
     Recursively convert JPype Java types to native Python types.
-
-    Args:
-        obj: An object possibly containing Java objects.
-
-    Returns:
-        The equivalent Python object with all Java strings converted to Python strings,
-        including in nested structures.
     """
     java_string_class = jpype.JClass("java.lang.String")
 
@@ -76,12 +69,6 @@ def convert_java_types(obj):
 def aggregate_metrics(class_info):
     """
     Aggregate class-level metrics to produce project-level summary metrics.
-
-    Args:
-        class_info (dict): Dictionary mapping class names to their metrics.
-
-    Returns:
-        dict: Aggregated totals, averages, and max values for metrics.
     """
     agg = {
         "total_classes": len(class_info),
@@ -121,20 +108,12 @@ def aggregate_metrics(class_info):
 def analyze_java_metrics(src_dir, output, aggregate):
     """
     Analyze Java source files in a directory and compute object-oriented metrics.
-
-    Args:
-        src_dir (str): Directory containing Java files.
-        output (str): File path to save the JSON results (optional).
-        aggregate (bool): Include aggregated project metrics.
-
-    Returns:
-        dict: Metrics data in JSON-serializable format.
     """
     if not jpype.isJVMStarted():
         jpype.startJVM(classpath=[str(CORE_JAR), str(SYMBOL_SOLVER_JAR), str(GUAVA_JAR)])
 
     from com.github.javaparser import ParserConfiguration, StaticJavaParser
-    from com.github.javaparser.ast.expr import MethodCallExpr
+    from com.github.javaparser.ast.expr import MethodCallExpr, FieldAccessExpr, NameExpr
     from com.github.javaparser.ast.stmt import ForStmt, IfStmt, SwitchStmt, WhileStmt
     from com.github.javaparser.ast.body import RecordDeclaration
     from com.github.javaparser.ParserConfiguration import LanguageLevel
@@ -158,6 +137,45 @@ def analyze_java_metrics(src_dir, output, aggregate):
     class_info = {}
     inheritance_map = {}
     children_map = defaultdict(list)
+
+    def compute_LCOM(cid):
+        """
+        Compute Lack of Cohesion of Methods (LCOM) for a class.
+
+        LCOM = number of method pairs that do NOT share a field (P) minus
+               number of method pairs that do share a field (Q), if P > Q, else 0.
+        """
+        fields = {f.getVariable(0).getNameAsString() for f in cid.getFields()}
+        methods = cid.getMethods()
+        if methods.size() < 2:
+            return 0  # Not enough methods for cohesion analysis
+
+        method_field_access = []
+
+        for method in methods:
+            accessed_fields = set()
+            body = method.getBody().orElse(None)
+            if body:
+                # Combine FieldAccessExpr and NameExpr for field access detection
+                field_accesses = list(body.findAll(FieldAccessExpr)) + list(body.findAll(NameExpr))
+                for fa in field_accesses:
+                    name = fa.getNameAsString()
+                    if name in fields:
+                        accessed_fields.add(name)
+            method_field_access.append(accessed_fields)
+
+        P = 0  # pairs without shared fields
+        Q = 0  # pairs with shared fields
+
+        n = len(method_field_access)
+        for i in range(n):
+            for j in range(i + 1, n):
+                if method_field_access[i].intersection(method_field_access[j]):
+                    Q += 1
+                else:
+                    P += 1
+
+        return max(P - Q, 0)
 
     for dirpath, _, filenames in os.walk(src_dir):
         for filename in filenames:
@@ -217,7 +235,9 @@ def analyze_java_metrics(src_dir, output, aggregate):
                         cbo = len(called_classes)
                         rfc += nom
                         loc = len([line for line in code.splitlines() if line.strip() and not line.strip().startswith("//")])
-                        lcom = 0  # Placeholder
+
+                        # Precise LCOM calculation
+                        lcom = compute_LCOM(cid)
 
                         class_info[name] = {
                             "LOC": loc,
